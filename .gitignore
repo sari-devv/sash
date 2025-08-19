@@ -1,2 +1,3 @@
 *.o
 sash
+test_*
