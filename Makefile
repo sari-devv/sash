@@ -2,12 +2,15 @@ CXX = g++
 CXXFLAGS = -std=c++20 -Wall
 
 TARGET = sash
-SOURCES = main.cpp Parser.cpp
+SOURCES = main.cpp Parser.cpp Shell.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 TEST_TARGET = test_parser
 TEST_SOURCES = tests/TestParser.cpp Parser.cpp
 TEST_OBJECTS = $(TEST_SOURCES:.cpp=.o)
+
+ASAN_TARGET = sash_asan
+ASAN_CXXFLAGS = $(CXXFLAGS) -fsanitize=address
 
 all: $(TARGET)
 
@@ -26,5 +29,10 @@ test: $(TEST_TARGET)
 $(TEST_TARGET): $(TEST_OBJECTS)
 	$(CXX) $(CXXFLAGS) -I. -o $(TEST_TARGET) $(TEST_OBJECTS)
 
+asan: $(ASAN_TARGET)
+
+$(ASAN_TARGET): $(OBJECTS)
+	$(CXX) $(ASAN_CXXFLAGS) -o $(ASAN_TARGET) $(OBJECTS)
+
 clean:
-	rm -f $(OBJECTS) $(TARGET) $(TEST_OBJECTS) $(TEST_TARGET)
+	rm -f $(OBJECTS) $(TARGET) $(TEST_OBJECTS) $(TEST_TARGET) $(ASAN_TARGET)
