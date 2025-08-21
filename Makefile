@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall
+CXXFLAGS = -g -std=c++20 -Wall -Werror
 
 TARGET = sash
 SOURCES = main.cpp Parser.cpp Shell.cpp
