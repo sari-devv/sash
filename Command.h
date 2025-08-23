@@ -3,25 +3,17 @@
 #include <string>
 #include <vector>
 
+using std::vector;
+
 class Command {
-public:
-    void setExecutable(const std::string& executable) {
-        m_executable = executable;
-    }
+  public:
+    void setExecutable(const std::string& executable);
+    void addArgument(const std::string& argument);
+    const std::string& getExecutable() const;
+    const vector<std::string>& getArguments() const;
+    vector<const char*> getArgsAsCharVec() const;
 
-    void addArgument(const std::string& argument) {
-        m_arguments.push_back(argument);
-    }
-
-    const std::string& getExecutable() const {
-        return m_executable;
-    }
-
-    const std::vector<std::string>& getArguments() const {
-        return m_arguments;
-    }
-
-private:
+  private:
     std::string m_executable;
     std::vector<std::string> m_arguments;
 };

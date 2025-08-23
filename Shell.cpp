@@ -1,10 +1,13 @@
 #include "Shell.h"
+#include "Command.h"
 #include "Parser.h"
 
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <limits.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 using std::cerr;
@@ -25,7 +28,6 @@ Shell::Shell() {
 int Shell::init() {
     const char* pHomeDir = getHomeDir();
 
-    m_cwd = pHomeDir;
     int res = chdir(pHomeDir);
     if (res < 0) {
         perror("Can't set directory to HOME");
@@ -80,48 +82,43 @@ int Shell::execute(const Command& cmd) {
     }
 
     else {
-        cout << "Execute external cmd" << endl;
+        executeExternalCmd(cmd);
     }
 
     return 0;
 }
 
-/**************************** Builtins *******************************/
-
-int Shell::cd(const Command& cmd) {
-    assert(cmd.getExecutable() == "cd");
-
-    auto arguments = cmd.getArguments();
-    if (arguments.size() > 1) {
-        cerr << "Too many arguments" << endl;
-        return -1;
+int Shell::executeExternalCmd(const Command& cmd) {
+    /* We now need to execute an external command. We start with
+     * assuming each executable is in /bin.
+     * For each external cmd, we start a new process and run it using execve().
+     */
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork() failed");
+        return 1;
     }
 
-    const char* targetDir;
-    if (arguments.size() == 0) {
-        targetDir = getHomeDir();
+    if (pid == 0) {
+        /* Child process code, run execve(). */
+        string executable = cmd.getExecutable();
+        if (executable[0] != '/') {
+            /* We were given a relative path. */
+            executable = "/bin/" + executable;
+        }
+        execv(executable.c_str(),
+              const_cast<char* const*>(cmd.getArgsAsCharVec().data()));
+        perror("Execv failed");
+        exit(EXIT_FAILURE);
     } else {
-        targetDir = arguments[0].c_str();
+        /* Parent process, wait for the child. */
+        int status;
+        int res = waitpid(pid, &status, 0);
+        if (res < 0) {
+            perror("waitpid failed");
+            return 1;
+        }
     }
-
-    int res = chdir(targetDir);
-    if (res != 0) {
-        perror("Cannot change directory");
-        return res;
-    }
-
-    /* Now set the cwd based on whether it was a relative path or not. */
-    if (targetDir[0] == '/') {
-        m_cwd = targetDir;
-    } else {
-        m_cwd += "/" + string(targetDir);
-    }
-
-    return 0;
-}
-
-int Shell::pwd(const Command& cmd) {
-    cout << m_cwd << endl;
 
     return 0;
 }

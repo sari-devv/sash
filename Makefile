@@ -2,11 +2,11 @@ CXX = g++
 CXXFLAGS = -g -std=c++20 -Wall -Werror
 
 TARGET = sash
-SOURCES = main.cpp Parser.cpp Shell.cpp
+SOURCES = main.cpp Parser.cpp Shell.cpp Command.cpp cd.cpp pwd.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 
 TEST_TARGET = test_parser
-TEST_SOURCES = tests/TestParser.cpp Parser.cpp
+TEST_SOURCES = tests/TestParser.cpp Parser.cpp Command.cpp cd.cpp pwd.cpp
 TEST_OBJECTS = $(TEST_SOURCES:.cpp=.o)
 
 ASAN_TARGET = sash_asan
