@@ -1,3 +1,4 @@
 *.o
 sash*
 test_*
+.DS_Store
