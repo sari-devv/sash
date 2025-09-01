@@ -20,8 +20,11 @@ class Shell {
     const char* getHomeDir();
     int execute(const Command& cmd);
     int executeExternalCmd(const Command& cmd);
+    string findExecutableInPath(string executable);
 
     string m_prompt{"$ "};
+
+    vector<string> m_path;
 
     /* Builtins. */
     using Builtin = std::function<int(const Command& cmd)>;

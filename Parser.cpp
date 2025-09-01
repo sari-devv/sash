@@ -3,10 +3,9 @@
 
 std::vector<Command> Parser::parse(const std::string& input) {
     std::vector<Command> commands;
-    std::stringstream ss(input);
-    std::string command_str;
+    auto command_strings = tokenize(input, '|');
 
-    while (std::getline(ss, command_str, '|')) {
+    for (const auto& command_str : command_strings) {
         std::stringstream command_ss(command_str);
         std::string token;
         Command cmd;
@@ -24,4 +23,15 @@ std::vector<Command> Parser::parse(const std::string& input) {
     }
 
     return commands;
+}
+
+std::vector<std::string> Parser::tokenize(const std::string& input,
+                                          char delimiter) {
+    std::vector<std::string> tokens;
+    std::stringstream ss(input);
+    std::string token;
+    while (std::getline(ss, token, delimiter)) {
+        tokens.push_back(token);
+    }
+    return tokens;
 }

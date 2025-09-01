@@ -3,8 +3,10 @@
 #include "Parser.h"
 
 #include <cassert>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <limits.h>
 #include <sys/wait.h>
@@ -18,6 +20,7 @@ using std::endl;
  * A default constructor. It initializes the home directory.
  */
 Shell::Shell() {
+    m_prompt = "[sash " + std::to_string(getpid()) + "]$ ";
 }
 
 /**
@@ -32,6 +35,11 @@ int Shell::init() {
     if (res < 0) {
         perror("Can't set directory to HOME");
         return -1;
+    }
+
+    const char* pPath = std::getenv("PATH");
+    if (pPath != nullptr) {
+        m_path = Parser::tokenize(pPath, ':');
     }
 
     return res;
@@ -103,11 +111,15 @@ int Shell::executeExternalCmd(const Command& cmd) {
         /* Child process code, run execve(). */
         string executable = cmd.getExecutable();
         if (executable[0] != '/') {
-            /* We were given a relative path. */
-            executable = "/bin/" + executable;
+            /* We were given a relative path, look for the executable in each
+             * directory of PATH. */
+            executable = findExecutableInPath(executable);
+            if (executable.empty()) {
+                exit(1);
+            }
         }
-        execv(executable.c_str(),
-              const_cast<char* const*>(cmd.getArgsAsCharVec().data()));
+        auto args = cmd.getArgsAsCharVec();
+        execv(executable.c_str(), const_cast<char* const*>(args.data()));
         perror("Execv failed");
         exit(EXIT_FAILURE);
     } else {
@@ -121,4 +133,33 @@ int Shell::executeExternalCmd(const Command& cmd) {
     }
 
     return 0;
+}
+
+string Shell::findExecutableInPath(string executable) {
+    for (const string& dir : m_path) {
+        string path = dir + "/" + executable;
+        int res = access(path.c_str(), X_OK);
+        if (res == 0) {
+            return path;
+        }
+        /* access(2) failed. Check the reason. */
+        if (errno == ENOENT) {
+            /* If the file does not exist in this directory, check the next
+             * directory in PATH. */
+            continue;
+        }
+
+        /* Else, print the error and exit. */
+        perror("sash");
+        return "";
+    }
+
+    /* If errno wasn't ENOENT, print it. Else print a custom error message. */
+    if (errno != ENOENT) {
+        perror("sash");
+    } else {
+        cerr << "sash: command not found" << endl;
+    }
+
+    return "";
 }
