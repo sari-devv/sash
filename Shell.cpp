@@ -3,6 +3,7 @@
 #include "Parser.h"
 
 #include <cassert>
+#include <cctype>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -10,11 +11,78 @@
 #include <iostream>
 #include <limits.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::string;
+
+namespace {
+
+/**
+ * An RAII wrapper for managing the terminal in raw mode.
+ * The constructor enables raw mode, and the destructor restores the original mode.
+ */
+class RawModeTerminal {
+public:
+    RawModeTerminal() {
+        // Get the original terminal attributes
+        tcgetattr(STDIN_FILENO, &m_orig_termios);
+
+        // Create a raw copy and disable canonical mode and echo
+        termios raw = m_orig_termios;
+        raw.c_lflag &= ~(ECHO | ICANON);
+
+        // Apply the raw attributes
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    }
+
+    ~RawModeTerminal() {
+        // Restore the original terminal attributes
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &m_orig_termios);
+    }
+
+    // Disable copy and assignment
+    RawModeTerminal(const RawModeTerminal&) = delete;
+    RawModeTerminal& operator=(const RawModeTerminal&) = delete;
+
+private:
+    termios m_orig_termios;
+};
+
+std::string getLineRaw(const std::string& prompt) {
+    // The RawModeTerminal object handles setup and teardown automatically.
+    RawModeTerminal raw_mode;
+
+    std::string line;
+    char c;
+    while (read(STDIN_FILENO, &c, 1) == 1) {
+        if (iscntrl(c)) {
+            if (c == 12) { // CTRL-L
+                // Clear screen, then redraw prompt and current line
+                write(STDOUT_FILENO, "\033[H\033[2J", 7);
+                write(STDOUT_FILENO, prompt.c_str(), prompt.length());
+                write(STDOUT_FILENO, line.c_str(), line.length());
+            } else if (c == '\n' || c == '\r') {
+                write(STDOUT_FILENO, "\n", 1);
+                break;
+            } else if (c == 127) { // Backspace
+                if (!line.empty()) {
+                    line.pop_back();
+                    // Move cursor back, write space, move back again
+                    write(STDOUT_FILENO, "\b \b", 3);
+                }
+            }
+        } else {
+            line += c;
+            write(STDOUT_FILENO, &c, 1);
+        }
+    }
+    return line;
+}
+} // namespace
 
 /**
  * A default constructor. It initializes the home directory.
@@ -62,10 +130,8 @@ int Shell::run() {
     /* The main logic of the shell, keep parsing commands until we get exit and
      * run each command. */
     while (true) {
-        std::cout << m_prompt;
-        if (!std::getline(std::cin, line)) {
-            break;
-        }
+        std::cout << m_prompt << std::flush;
+        line = getLineRaw(m_prompt);
 
         if (line == "exit") {
             break;
@@ -80,6 +146,7 @@ int Shell::run() {
 
     return 0;
 }
+
 
 int Shell::execute(const Command& cmd) {
     /* Check if the command is a built in command, if it's not, execute it from
