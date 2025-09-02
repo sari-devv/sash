@@ -1,38 +1,45 @@
 CXX = g++
 CXXFLAGS = -g -std=c++20 -Wall -Werror
 
+BUILD_DIR = build
+
 TARGET = sash
 SOURCES = main.cpp Parser.cpp Shell.cpp Command.cpp cd.cpp pwd.cpp
-OBJECTS = $(SOURCES:.cpp=.o)
+OBJECTS = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(SOURCES))
 
 TEST_TARGET = test_parser
 TEST_SOURCES = tests/TestParser.cpp Parser.cpp Command.cpp cd.cpp pwd.cpp
-TEST_OBJECTS = $(TEST_SOURCES:.cpp=.o)
+TEST_OBJECTS = $(patsubst %.cpp, $(BUILD_DIR)/%.o, $(TEST_SOURCES))
 
 ASAN_TARGET = sash_asan
 ASAN_CXXFLAGS = $(CXXFLAGS) -fsanitize=address
 
-all: $(TARGET)
+all: $(BUILD_DIR)/$(TARGET)
 
-$(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJECTS)
+$(BUILD_DIR)/$(TARGET): $(OBJECTS)
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
-%.o: %.cpp
+$(BUILD_DIR)/%.o: %.cpp
+	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-tests/TestParser.o: tests/TestParser.cpp
+$(BUILD_DIR)/tests/TestParser.o: tests/TestParser.cpp
+	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -I. -c $< -o $@
 
-test: $(TEST_TARGET)
-	./$(TEST_TARGET)
+test: $(BUILD_DIR)/$(TEST_TARGET)
+	$(BUILD_DIR)/$(TEST_TARGET)
 
-$(TEST_TARGET): $(TEST_OBJECTS)
-	$(CXX) $(CXXFLAGS) -I. -o $(TEST_TARGET) $(TEST_OBJECTS)
+$(BUILD_DIR)/$(TEST_TARGET): $(TEST_OBJECTS)
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) -I. -o $@ $^
 
-asan: $(ASAN_TARGET)
+asan: $(BUILD_DIR)/$(ASAN_TARGET)
 
-$(ASAN_TARGET): $(OBJECTS)
-	$(CXX) $(ASAN_CXXFLAGS) -o $(ASAN_TARGET) $(OBJECTS)
+$(BUILD_DIR)/$(ASAN_TARGET): $(OBJECTS)
+	@mkdir -p $(@D)
+	$(CXX) $(ASAN_CXXFLAGS) -o $@ $^
 
 clean:
-	rm -f $(OBJECTS) $(TARGET) $(TEST_OBJECTS) $(TEST_TARGET) $(ASAN_TARGET)
+	rm -rf $(BUILD_DIR)
