@@ -1,4 +1,4 @@
-*.o
+build/
 sash*
 test_*
 .DS_Store
