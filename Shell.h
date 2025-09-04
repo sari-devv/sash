@@ -6,9 +6,11 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 using std::string;
 using std::unordered_map;
+using std::vector;
 
 class Shell {
   public:
@@ -25,10 +27,10 @@ class Shell {
     string m_prompt{"$ "};
 
     vector<string> m_path;
+    vector<string> m_history;
 
     /* Builtins. */
     using Builtin = std::function<int(const Command& cmd)>;
 
-    unordered_map<string, Builtin> m_builtinMap{{"cd", &Cd::run},
-                                                {"pwd", &Pwd::run}};
+    unordered_map<string, Builtin> m_builtinMap;
 };

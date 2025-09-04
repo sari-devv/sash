@@ -1,5 +1,6 @@
 #include "Shell.h"
 #include "Command.h"
+#include "History.h"
 #include "Parser.h"
 
 #include <cassert>
@@ -29,23 +30,23 @@ namespace {
 class RawModeTerminal {
   public:
     RawModeTerminal() {
-        /* Get the original terminal attributes */
+        // Get the original terminal attributes
         tcgetattr(STDIN_FILENO, &m_orig_termios);
 
-        /* Create a raw copy and disable canonical mode and echo */
+        // Create a raw copy and disable canonical mode and echo
         termios raw = m_orig_termios;
         raw.c_lflag &= ~(ECHO | ICANON);
 
-        /* Apply the raw attributes */
+        // Apply the raw attributes
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
     }
 
     ~RawModeTerminal() {
-        /* Restore the original terminal attributes */
+        // Restore the original terminal attributes
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &m_orig_termios);
     }
 
-    /* Disable copy and assignment */
+    // Disable copy and assignment
     RawModeTerminal(const RawModeTerminal&) = delete;
     RawModeTerminal& operator=(const RawModeTerminal&) = delete;
 
@@ -54,25 +55,25 @@ class RawModeTerminal {
 };
 
 std::string getLineRaw(const std::string& prompt) {
-    /* The RawModeTerminal object handles setup and teardown automatically. */
+    // The RawModeTerminal object handles setup and teardown automatically.
     RawModeTerminal raw_mode;
 
     std::string line;
     char c;
     while (read(STDIN_FILENO, &c, 1) == 1) {
         if (iscntrl(c)) {
-            if (c == 12) { /* CTRL-L */
-                /* Clear screen, then redraw prompt and current line */
+            if (c == 12) { // CTRL-L
+                // Clear screen, then redraw prompt and current line
                 write(STDOUT_FILENO, "\033[H\033[2J", 7);
                 write(STDOUT_FILENO, prompt.c_str(), prompt.length());
                 write(STDOUT_FILENO, line.c_str(), line.length());
             } else if (c == '\n' || c == '\r') {
                 write(STDOUT_FILENO, "\n", 1);
                 break;
-            } else if (c == 127) { /* Backspace */
+            } else if (c == 127) { // Backspace
                 if (!line.empty()) {
                     line.pop_back();
-                    /* Move cursor back, write space, move back again */
+                    // Move cursor back, write space, move back again
                     write(STDOUT_FILENO, "\b \b", 3);
                 }
             }
@@ -83,13 +84,19 @@ std::string getLineRaw(const std::string& prompt) {
     }
     return line;
 }
-} /* namespace */
+} // namespace
 
 /**
  * A default constructor. It initializes the home directory.
  */
 Shell::Shell() {
     m_prompt = "[sash " + std::to_string(getpid()) + "]$ ";
+    m_builtinMap = {{"cd", &Cd::run},
+                    {"pwd", &Pwd::run},
+                    {"history", [this](const Command& cmd) {
+                         History history(m_history);
+                         return history.run(cmd);
+                     }}};
 }
 
 /**
@@ -133,6 +140,9 @@ int Shell::run() {
     while (true) {
         std::cout << m_prompt << std::flush;
         line = getLineRaw(m_prompt);
+        if (!line.empty() && (m_history.empty() || line != m_history.back())) {
+            m_history.push_back(line);
+        }
 
         if (line == "exit") {
             break;

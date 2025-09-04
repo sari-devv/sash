@@ -1,14 +1,14 @@
 #include "cd.h"
 #include "Command.h"
-#include <iostream>
-#include <unistd.h>
 #include <cassert>
 #include <cstdlib>
+#include <iostream>
+#include <unistd.h>
 
 using std::cerr;
 using std::endl;
 
-// This function is now private to the cd command
+/* This function is now private to the cd command. */
 static const char* getHomeDir() {
     const char* pHomeDirStr = std::getenv("HOME");
     assert(pHomeDirStr != nullptr);
